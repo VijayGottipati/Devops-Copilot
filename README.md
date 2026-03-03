@@ -77,6 +77,4 @@ The system architecture is decoupled into a robust back-end event processor and 
 
 OAuth 2.0 Client Identifiers and Secrets must be provided in the server environment to utilize Gmail and GitHub integration. Configure your respective developer consoles to allow callback URIs pointing to `/api/auth/{provider}/callback/`.
 
-## Author
 
-Developed by Vijay Gottipati.

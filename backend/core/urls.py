@@ -17,8 +17,13 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
+
+def root_view(request):
+    return JsonResponse({"status": "healthy", "service": "DevOps Copilot API"})
 
 urlpatterns = [
+    path("", root_view),
     path("admin/", admin.site.urls),
     path("api/", include("api.urls")),
 ]

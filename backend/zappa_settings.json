@@ -4,6 +4,7 @@
         "aws_region": "us-east-2",
         "project_name": "devops-copilot",
         "runtime": "python3.11",
-        "s3_bucket": "zappa-copilot-deploy-bucket-1"
+        "s3_bucket": "zappa-copilot-deploy-bucket-1",
+        "slim_handler": true
     }
 }
