@@ -8,6 +8,43 @@ from rest_framework import status
 from django.shortcuts import redirect
 import urllib.parse
 from .models import OAuthToken, Project
+from django.conf import settings
+
+FRONTEND_URL = getattr(settings, "CORS_ALLOWED_ORIGINS", ["http://localhost:4200"])[0]
+
+class OAuthLoginView(APIView):
+    def get(self, request, provider):
+        state = request.GET.get('project_id', '1') # Pass project ID in state
+        
+        if provider == 'gmail':
+            client_id = os.environ.get('GMAIL_CLIENT_ID')
+            redirect_uri = os.environ.get('GMAIL_REDIRECT_URI', 'https://devops-copilot-gc91.onrender.com/api/auth/gmail/callback/')
+            scope = "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send"
+            url = f"https://accounts.google.com/o/oauth2/v2/auth?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope={scope}&state={state}&access_type=offline&prompt=consent"
+            return redirect(url)
+            
+        elif provider == 'github':
+            client_id = os.environ.get('GITHUB_CLIENT_ID')
+            redirect_uri = os.environ.get('GITHUB_REDIRECT_URI', 'https://devops-copilot-gc91.onrender.com/api/auth/github/callback/')
+            scope = "repo read:user user:email"
+            url = f"https://github.com/login/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}&state={state}"
+            return redirect(url)
+            
+        elif provider == 'slack':
+            client_id = os.environ.get('SLACK_CLIENT_ID')
+            redirect_uri = os.environ.get('SLACK_REDIRECT_URI', 'https://devops-copilot-gc91.onrender.com/api/auth/slack/callback/')
+            scope = "app_mentions:read,channels:history,chat:write,groups:history,im:history,mpim:history"
+            url = f"https://slack.com/oauth/v2/authorize?client_id={client_id}&scope={scope}&redirect_uri={redirect_uri}&state={state}"
+            return redirect(url)
+            
+        elif provider == 'discord':
+            client_id = os.environ.get('DISCORD_CLIENT_ID')
+            redirect_uri = os.environ.get('DISCORD_REDIRECT_URI', 'https://devops-copilot-gc91.onrender.com/api/auth/discord/callback/')
+            scope = "webhook.incoming responses.read"
+            url = f"https://discord.com/api/oauth2/authorize?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope={scope}&state={state}"
+            return redirect(url)
+            
+        return Response({"error": "Unsupported provider"}, status=status.HTTP_400_BAD_REQUEST)
 
 class OAuthCallbackView(APIView):
     def get(self, request, provider):
@@ -29,13 +66,15 @@ class OAuthCallbackView(APIView):
             return self.handle_discord(code, project)
         elif provider == 'gmail':
             return self.handle_gmail(code, project)
+        elif provider == 'github':
+            return self.handle_github(code, project)
         else:
-            return Response({"error": "Unsupported provider"}, status=status.HTTP_400_BAD_REQUEST)
+            return redirect(f"{FRONTEND_URL}?status=error&message=Unsupported+provider")
 
     def handle_slack(self, code, project):
         client_id = os.environ.get('SLACK_CLIENT_ID')
         client_secret = os.environ.get('SLACK_CLIENT_SECRET')
-        redirect_uri = os.environ.get('SLACK_REDIRECT_URI', 'http://localhost:8000/api/auth/slack/callback/')
+        redirect_uri = os.environ.get('SLACK_REDIRECT_URI', 'https://devops-copilot-gc91.onrender.com/api/auth/slack/callback/')
         
         response = requests.post('https://slack.com/api/oauth.v2.access', data={
             'client_id': client_id,
@@ -46,7 +85,7 @@ class OAuthCallbackView(APIView):
         
         data = response.json()
         if not data.get('ok'):
-            return Response({"error": data.get('error')}, status=status.HTTP_400_BAD_REQUEST)
+            return redirect(f"{FRONTEND_URL}?status=error&message=Slack+OAuth+Failed")
             
         access_token = data.get('access_token')
         refresh_token = data.get('refresh_token')
@@ -54,12 +93,12 @@ class OAuthCallbackView(APIView):
         expires_at = timezone.now() + timedelta(seconds=expires_in) if expires_in else None
         
         self.save_token(project, 'slack', access_token, refresh_token, expires_at)
-        return Response({"status": "Slack connected successfully"})
+        return redirect(f"{FRONTEND_URL}?status=success&provider=slack")
 
     def handle_discord(self, code, project):
         client_id = os.environ.get('DISCORD_CLIENT_ID')
         client_secret = os.environ.get('DISCORD_CLIENT_SECRET')
-        redirect_uri = os.environ.get('DISCORD_REDIRECT_URI', 'http://localhost:8000/api/auth/discord/callback/')
+        redirect_uri = os.environ.get('DISCORD_REDIRECT_URI', 'https://devops-copilot-gc91.onrender.com/api/auth/discord/callback/')
         
         data = {
             'client_id': client_id,
@@ -75,7 +114,7 @@ class OAuthCallbackView(APIView):
         
         data = response.json()
         if 'error' in data:
-            return Response({"error": data.get('error_description', data.get('error'))}, status=status.HTTP_400_BAD_REQUEST)
+            return redirect(f"{FRONTEND_URL}?status=error&message=Discord+OAuth+Failed")
             
         access_token = data.get('access_token')
         refresh_token = data.get('refresh_token')
@@ -83,12 +122,12 @@ class OAuthCallbackView(APIView):
         expires_at = timezone.now() + timedelta(seconds=expires_in) if expires_in else None
         
         self.save_token(project, 'discord', access_token, refresh_token, expires_at)
-        return Response({"status": "Discord connected successfully"})
+        return redirect(f"{FRONTEND_URL}?status=success&provider=discord")
 
     def handle_gmail(self, code, project):
         client_id = os.environ.get('GMAIL_CLIENT_ID')
         client_secret = os.environ.get('GMAIL_CLIENT_SECRET')
-        redirect_uri = os.environ.get('GMAIL_REDIRECT_URI', 'http://localhost:8000/api/auth/gmail/callback/')
+        redirect_uri = os.environ.get('GMAIL_REDIRECT_URI', 'https://devops-copilot-gc91.onrender.com/api/auth/gmail/callback/')
         
         data = {
             'client_id': client_id,
@@ -102,7 +141,7 @@ class OAuthCallbackView(APIView):
         data = response.json()
         
         if 'error' in data:
-            return Response({"error": data.get('error_description', data.get('error'))}, status=status.HTTP_400_BAD_REQUEST)
+            return redirect(f"{FRONTEND_URL}?status=error&message=Gmail+OAuth+Failed")
             
         access_token = data.get('access_token')
         refresh_token = data.get('refresh_token')
@@ -110,7 +149,28 @@ class OAuthCallbackView(APIView):
         expires_at = timezone.now() + timedelta(seconds=expires_in) if expires_in else None
         
         self.save_token(project, 'gmail', access_token, refresh_token, expires_at)
-        return Response({"status": "Gmail connected successfully"})
+        return redirect(f"{FRONTEND_URL}?status=success&provider=gmail")
+
+    def handle_github(self, code, project):
+        client_id = os.environ.get('GITHUB_CLIENT_ID')
+        client_secret = os.environ.get('GITHUB_CLIENT_SECRET')
+        
+        data = {
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'code': code
+        }
+        
+        response = requests.post('https://github.com/login/oauth/access_token', data=data, headers={'Accept': 'application/json'})
+        data = response.json()
+        
+        if 'error' in data:
+            return redirect(f"{FRONTEND_URL}?status=error&message=GitHub+OAuth+Failed")
+            
+        access_token = data.get('access_token')
+        
+        self.save_token(project, 'github', access_token, None, None)
+        return redirect(f"{FRONTEND_URL}?status=success&provider=github")
         
     def save_token(self, project, provider, access_token, refresh_token, expires_at):
         OAuthToken.objects.update_or_create(
