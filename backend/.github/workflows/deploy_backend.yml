@@ -1,0 +1,49 @@
+name: Serverless Backend Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Run Tests
+        run: |
+          cd backend
+          python manage.py test
+          
+      # Since we are focusing on Free-Tier, a common approach for Django applies here:
+      # e.g. Deploying to Render via their Deploy Hook OR Zappa to AWS Lambda
+      - name: Trigger Free-Tier Deployment Hook (Render/Railway)
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        if: ${{ env.DEPLOY_HOOK_URL != '' }}
+        run: |
+          curl -X POST $DEPLOY_HOOK_URL
+          
+      # Log outcome to our zero-cost Discord/Slack #server-logs aggregator
+      - name: Notify Log Aggregator
+        if: always()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_SERVER_LOGS_WEBHOOK }}
+        run: |
+          curl -H "Content-Type: application/json" \
+               -d '{"content": "Deployment pipeline finished with status: ${{ job.status }}"}' \
+               $DISCORD_WEBHOOK_URL

@@ -1,0 +1,26 @@
+# Environment Variables and Secrets
+.env
+backend/.env
+backup_env/
+credentials.json.json
+copilot-sqs-user_accessKeys.csv
+ngrok_recovery_codes.txt
+
+# Python
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/*.sqlite3
+backend/db.sqlite3
+
+# Node / Angular
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/npm-debug.log*
+frontend/yarn-error.log*
+frontend/yarn-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
