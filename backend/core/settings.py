@@ -30,12 +30,22 @@ SECRET_KEY = "django-insecure-1a5377dq25^g2u2i&g$erw3kpguo%$ryalx7rmx=b0wa+#=8t+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*', 'devops-copilot-theta.vercel.app']
+# Render automatically sets RENDER_EXTERNAL_HOSTNAME in production
+RENDER_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+
+ALLOWED_HOSTS = [
+    '*', # Allows local and generic testing
+    'devops-copilot-theta.vercel.app',
+]
+if RENDER_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_HOSTNAME)
 
 CORS_ALLOWED_ORIGINS = [
     "https://devops-copilot-theta.vercel.app",
     "http://localhost:4200",
 ]
+if RENDER_HOSTNAME:
+    CORS_ALLOWED_ORIGINS.append(f"https://{RENDER_HOSTNAME}")
 
 
 # Application definition
