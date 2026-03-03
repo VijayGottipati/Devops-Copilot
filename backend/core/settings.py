@@ -30,9 +30,12 @@ SECRET_KEY = "django-insecure-1a5377dq25^g2u2i&g$erw3kpguo%$ryalx7rmx=b0wa+#=8t+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*', 'devops-copilot-theta.vercel.app']
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "https://devops-copilot-theta.vercel.app",
+    "http://localhost:4200",
+]
 
 
 # Application definition
